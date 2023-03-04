@@ -33,87 +33,111 @@ internal class Program {
         // Get work items from ADO
         List<WorkItem> bugs = new List<WorkItem>();
         List<WorkItem> stories = new List<WorkItem>();
-        (stories, bugs) = await GetAzureDevOpsWorkItems();
 
-        string outputFileName = $"Transcendent Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.Year}.{Config.ReleaseInfo.DateTime.Month.ToString().PadLeft(2, '0')}.{Config.ReleaseInfo.DateTime.Day.ToString().PadLeft(2, '0')}.pdf";
+        try {
+            (stories, bugs) = await GetAzureDevOpsWorkItems();
+        } catch (Exception ex) {
+            Console.WriteLine($"Ran into an unexpected error while retreiving Azure DevOps work items.");
+            Console.WriteLine($"{ex.Message}");
+            return;
+        }
+
+        string outputFileName = GetOutputFile();
+        Console.WriteLine($"Generating Release Notes, and saving to: {outputFileName}");
 
         // Create PDF file and save to disk
-        Document.Create(container => {
-            // Cover Page
-            container.Page(page => {
-                page.Size(PageSizes.A4);
-                page.Margin(2, Unit.Centimetre);
-                page.PageColor(Colors.White);
+        try {
+            Document.Create(container => {
+                // Cover Page
+                container.Page(page => {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.PageColor(Colors.White);
 
-                // Content
-                page.Content().AlignMiddle().Column(col => {
-                    col.Item().PaddingBottom(10).Text("Release Notes").SemiBold().FontSize(26);
-                    col.Item().Text($"{Config.ReleaseInfo.DateTime.ToString("MMMM dd, yyyy")} Update");
-                });
-
-                // Footer
-                page.Footer().AlignMiddle().Row(row => {
-                    if (useFooterImage) {
-                        row.AutoItem().AlignLeft().Height(48).Hyperlink(Config.FooterHyperlink).Image(Path.Combine(AppContext.BaseDirectory, Config.FooterImagePath), ImageScaling.FitHeight);
-                    } else {
-                        row.AutoItem().AlignLeft().Width(48).Height(36).PaddingRight(10).Hyperlink(Config.FooterHyperlink).Placeholder();
-                    }
-
-                    row.RelativeItem().AlignMiddle().Column(col => {
-                        col.Item().Text(Config.FooterAddress);
-                        col.Item().Hyperlink(Config.FooterHyperlink).Text(Config.FooterHyperlinkText);
+                    // Content
+                    page.Content().AlignMiddle().Column(col => {
+                        col.Item().PaddingBottom(10).Text("Release Notes").SemiBold().FontSize(26);
+                        col.Item().Text($"{Config.ReleaseInfo.DateTime.ToString("MMMM dd, yyyy")} Update");
                     });
-                });
-            });
 
-            // Notes Page
-            container.Page(page => {
-                page.Size(PageSizes.A4);
-                page.Margin(2, Unit.Centimetre);
-                page.PageColor(Colors.White);
+                    // Footer
+                    page.Footer().AlignMiddle().Row(row => {
+                        if (useFooterImage) {
+                            row.AutoItem().AlignLeft().Height(48).Hyperlink(Config.FooterHyperlink).Image(Path.Combine(AppContext.BaseDirectory, Config.FooterImagePath), ImageScaling.FitHeight);
+                        } else {
+                            row.AutoItem().AlignLeft().Width(48).Height(36).PaddingRight(10).Hyperlink(Config.FooterHyperlink).Placeholder();
+                        }
 
-                // Notes Header
-                page.Header().AlignMiddle().Row(row => {
-                    if (useHeaderImage) {
-                        row.AutoItem().AlignLeft().Width(200).Height(36).Image(Path.Combine(AppContext.BaseDirectory, Config.HeaderImagePath), ImageScaling.FitHeight);
-                    } else {
-                        row.AutoItem().AlignLeft().Width(125).Height(36).Placeholder();
-                    }
-
-                    row.RelativeItem().AlignRight().AlignMiddle().Text($"Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.ToString("M/dd/yyyy")}").FontColor(Colors.Grey.Darken2);
-                });
-
-                // Notes Content
-                page.Content().PaddingVertical(1, Unit.Centimetre).Column(x => {
-                    // Write Features
-                    x.Item().Text("Features").FontSize(16);
-                    x.WriteWorkItems(stories);
-
-                    x.Item().PageBreak();
-
-                    // Write Fixes
-                    x.Item().Text("Fixes").FontSize(18);
-                    x.WriteWorkItems(bugs);
-                });
-
-                // Notes Footer
-                page.Footer().Column(col => {
-                    col.Item().LineHorizontal(1).LineColor(Colors.Grey.Darken2);
-                    col.Spacing(2);
-                    col.Item().Row(row => {
-                        row.AutoItem().AlignLeft().Text($"Copyright {DateTime.Now.Year}, Transcendent© Corporation").FontColor(Colors.Grey.Darken2); ;
-                        row.RelativeItem().AlignRight().Text(x => {
-                            x.Span("Page ").FontColor(Colors.Grey.Darken2); ;
-                            x.CurrentPageNumber().FontColor(Colors.Grey.Darken2); ;
-                            x.Span(" of ").FontColor(Colors.Grey.Darken2); ;
-                            x.TotalPages().FontColor(Colors.Grey.Darken2); ;
+                        row.RelativeItem().AlignMiddle().Column(col => {
+                            col.Item().Text(Config.FooterAddress);
+                            col.Item().Hyperlink(Config.FooterHyperlink).Text(Config.FooterHyperlinkText);
                         });
                     });
                 });
-            });
-        }).GeneratePdf(outputFileName);
 
+                // Notes Page
+                container.Page(page => {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+
+                    // Notes Header
+                    page.Header().AlignMiddle().Row(row => {
+                        if (useHeaderImage) {
+                            row.AutoItem().AlignLeft().Width(200).Height(36).Image(Path.Combine(AppContext.BaseDirectory, Config.HeaderImagePath), ImageScaling.FitHeight);
+                        } else {
+                            row.AutoItem().AlignLeft().Width(125).Height(36).Placeholder();
+                        }
+
+                        row.RelativeItem().AlignRight().AlignMiddle().Text($"Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.ToString("M/dd/yyyy")}").FontColor(Colors.Grey.Darken2);
+                    });
+
+                    // Notes Content
+                    page.Content().PaddingVertical(1, Unit.Centimetre).Column(x => {
+                        // Write Features
+                        x.Item().Text("Features").FontSize(16);
+                        x.WriteWorkItems(stories, Config);
+
+                        x.Item().PageBreak();
+
+                        // Write Fixes
+                        x.Item().Text("Fixes").FontSize(18);
+                        x.WriteWorkItems(bugs, Config);
+                    });
+
+                    // Notes Footer
+                    page.Footer().Column(col => {
+                        col.Item().LineHorizontal(1).LineColor(Colors.Grey.Darken2);
+                        col.Spacing(2);
+                        col.Item().Row(row => {
+                            row.AutoItem().AlignLeft().Text($"Copyright {DateTime.Now.Year}, Transcendent© Corporation").FontColor(Colors.Grey.Darken2); ;
+                            row.RelativeItem().AlignRight().Text(x => {
+                                x.Span("Page ").FontColor(Colors.Grey.Darken2); ;
+                                x.CurrentPageNumber().FontColor(Colors.Grey.Darken2); ;
+                                x.Span(" of ").FontColor(Colors.Grey.Darken2); ;
+                                x.TotalPages().FontColor(Colors.Grey.Darken2); ;
+                            });
+                        });
+                    });
+                });
+            }).GeneratePdf($"{outputFileName}");
+        } catch (UnauthorizedAccessException ex) {
+            Console.WriteLine($"We were unable to save the release notes document to the specified path.");
+            Console.WriteLine($"Exception Message: {ex.Message}");
+        } catch (Exception ex) {
+            Console.WriteLine($"Ran into an unexpected error while retreiving Azure DevOps work items.");
+            Console.WriteLine($"{ex.Message}");
+        }
         Console.WriteLine("Done");
+    }
+
+    private static string GetOutputFile() {
+        string fileName = $"Transcendent Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.Year}.{Config.ReleaseInfo.DateTime.Month.ToString().PadLeft(2, '0')}.{Config.ReleaseInfo.DateTime.Day.ToString().PadLeft(2, '0')}.pdf";
+        if (string.IsNullOrWhiteSpace(Config.OutputPath)) {
+            return fileName;
+        }
+
+        return Path.Combine(Config.OutputPath, fileName);
     }
 
     private static void ParseArgs(string[] args) {
@@ -122,7 +146,8 @@ internal class Program {
         Console.WriteLine("Parsing args");
         Dictionary<string, Action<string>> argsMap = new Dictionary<string, Action<string>>() {
             { "r", (string p) => { Config.ReleaseInfo.Version = p; } },
-            { "d", (string p) => { Config.ReleaseInfo.Date = p; } }
+            { "d", (string p) => { Config.ReleaseInfo.Date = p; } },
+            { "o", (string p) => { Config.OutputPath = p; } },
         };
 
         for (int i = 0; i < args.Length; i += 2) {
@@ -214,7 +239,7 @@ internal class Program {
 }
 
 public static class QuestPDFExtensions {
-    public static void WriteWorkItems(this ColumnDescriptor col, IEnumerable<WorkItem> items) {
+    public static void WriteWorkItems(this ColumnDescriptor col, IEnumerable<WorkItem> items, AppConfig config) {
         string itemDesc = "";
         int count = 1;
 
@@ -223,7 +248,11 @@ public static class QuestPDFExtensions {
 #if DEBUG
                 itemDesc = Placeholders.LoremIpsum();
 #else
-                continue;
+                if (config.SkipWorkItemsWithNoNotes) {
+                    continue;
+                } else {
+                    itemDesc = "";
+                }
 #endif
             }
 
