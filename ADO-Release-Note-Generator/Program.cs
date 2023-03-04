@@ -1,4 +1,5 @@
 ﻿using ADO_Release_Note_Generator.Models;
+using ADO_Release_Note_Generator.QuestPDFComponents;
 using Microsoft.Extensions.Configuration;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
@@ -96,20 +97,12 @@ internal class Program {
                     });
 
                     // Notes Content
-                    page.Content().PaddingVertical(1, Unit.Centimetre).Column(x => {
+                    page.Content().PaddingVertical(1, Unit.Centimetre).Column(col => {
                         // Write Features
-                        if (stories.Count > 0) {
-                            x.Item().Text("Features").FontSize(16);
-                            x.WriteWorkItems(stories, Config);
-
-                            x.Item().PageBreak();
-                        }
+                        col.Item().Component(new WorkItemPDFComponent("Features", stories, Config.SkipWorkItemsWithNoNotes));
 
                         // Write Fixes
-                        if (bugs.Count > 0) {
-                            x.Item().Text("Fixes").FontSize(18);
-                            x.WriteWorkItems(bugs, Config);
-                        }
+                        col.Item().Component(new WorkItemPDFComponent("Fixes", bugs, Config.SkipWorkItemsWithNoNotes));
                     });
 
                     // Notes Footer
@@ -132,7 +125,7 @@ internal class Program {
             Console.WriteLine($"We were unable to save the release notes document to the specified path.");
             Console.WriteLine($"Exception Message: {ex.Message}");
         } catch (Exception ex) {
-            Console.WriteLine($"Ran into an unexpected error while retreiving Azure DevOps work items.");
+            Console.WriteLine($"Ran into an unexpected error while composing PDF document.");
             Console.WriteLine($"{ex.Message}");
         }
         Console.WriteLine("Done");
@@ -242,43 +235,5 @@ internal class Program {
         }
 
         return true;
-    }
-}
-
-public static class QuestPDFExtensions {
-    public static void WriteWorkItems(this ColumnDescriptor col, IEnumerable<WorkItem> items, AppConfig config) {
-        string itemDesc = "";
-        int count = 1;
-
-        foreach (WorkItem item in items) {
-            if (!item.Fields.TryGetValue("Custom.ReleaseNotesNotes", out itemDesc)) {
-#if DEBUG
-                itemDesc = Placeholders.LoremIpsum();
-#else
-                if (config.SkipWorkItemsWithNoNotes) {
-                    continue;
-                } else {
-                    itemDesc = "";
-                }
-#endif
-            }
-
-            col.Item().PaddingBottom(10).Row(row => {
-                row.AutoItem().PaddingLeft(10).Text($"{count}. ").FontSize(12);
-                row.Spacing(10);
-
-                row.RelativeItem().Column(col => {
-                    col.Item().Text(item.Fields["System.Title"]?.ToString()).FontSize(12);
-                    col.Item().Text(itemDesc).FontSize(12).FontColor(Colors.Grey.Darken3);
-                });
-            });
-
-            count++;
-            col.Spacing(10);
-        }
-
-        if (count == 1) {
-            col.Item().PaddingLeft(10).Text($"No items were included in this release.");
-        }
     }
 }
