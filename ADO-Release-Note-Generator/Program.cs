@@ -36,6 +36,9 @@ internal class Program {
 
         try {
             (stories, bugs) = await GetAzureDevOpsWorkItems();
+        } catch (VssUnauthorizedException) {
+            Console.WriteLine($"Invalid credentials were provided to access Azure DevOps, please check configuration settings.");
+            return;
         } catch (Exception ex) {
             Console.WriteLine($"Ran into an unexpected error while retreiving Azure DevOps work items.");
             Console.WriteLine($"{ex.Message}");
