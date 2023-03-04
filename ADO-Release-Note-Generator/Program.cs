@@ -98,14 +98,18 @@ internal class Program {
                     // Notes Content
                     page.Content().PaddingVertical(1, Unit.Centimetre).Column(x => {
                         // Write Features
-                        x.Item().Text("Features").FontSize(16);
-                        x.WriteWorkItems(stories, Config);
+                        if (stories.Count > 0) {
+                            x.Item().Text("Features").FontSize(16);
+                            x.WriteWorkItems(stories, Config);
 
-                        x.Item().PageBreak();
+                            x.Item().PageBreak();
+                        }
 
                         // Write Fixes
-                        x.Item().Text("Fixes").FontSize(18);
-                        x.WriteWorkItems(bugs, Config);
+                        if (bugs.Count > 0) {
+                            x.Item().Text("Fixes").FontSize(18);
+                            x.WriteWorkItems(bugs, Config);
+                        }
                     });
 
                     // Notes Footer
@@ -271,6 +275,10 @@ public static class QuestPDFExtensions {
 
             count++;
             col.Spacing(10);
+        }
+
+        if (count == 1) {
+            col.Item().PaddingLeft(10).Text($"No items were included in this release.");
         }
     }
 }
