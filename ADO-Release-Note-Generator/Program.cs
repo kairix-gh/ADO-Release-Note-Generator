@@ -33,7 +33,6 @@ internal class Program {
         // Get work items from ADO
         List<WorkItem> bugs = new List<WorkItem>();
         List<WorkItem> stories = new List<WorkItem>();
-
         (stories, bugs) = await GetAzureDevOpsWorkItems();
 
         string outputFileName = $"Transcendent Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.Year}.{Config.ReleaseInfo.DateTime.Month.ToString().PadLeft(2, '0')}.{Config.ReleaseInfo.DateTime.Day.ToString().PadLeft(2, '0')}.pdf";
@@ -215,7 +214,6 @@ internal class Program {
 }
 
 public static class QuestPDFExtensions {
-
     public static void WriteWorkItems(this ColumnDescriptor col, IEnumerable<WorkItem> items) {
         string itemDesc = "";
         int count = 1;
