@@ -101,6 +101,8 @@ internal class Program {
                         // Write Features
                         col.Item().Component(new WorkItemPDFComponent("Features", stories, Config.SkipWorkItemsWithNoNotes));
 
+                        col.Item().PageBreak();
+
                         // Write Fixes
                         col.Item().Component(new WorkItemPDFComponent("Fixes", bugs, Config.SkipWorkItemsWithNoNotes));
                     });

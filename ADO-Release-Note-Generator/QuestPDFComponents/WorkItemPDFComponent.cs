@@ -1,4 +1,5 @@
-﻿using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
+﻿using ADO_Release_Note_Generator.Utils;
+using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Common;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -27,11 +28,15 @@ namespace ADO_Release_Note_Generator.QuestPDFComponents {
 #if DEBUG
                         itemDesc = Placeholders.LoremIpsum();
 #else
-                    if (skipItems) {
-                        continue;
-                    }
+                        if (skipItems) {
+                            continue;
+                        }
 #endif
                     }
+
+                    // Remove any HTML from Azure DevOps and trim newlines
+                    itemDesc = HTMLUtils.SanitizeHTML(itemDesc);
+                    itemDesc = itemDesc.Trim().TrimEnd(Environment.NewLine.ToCharArray());
 
                     col.Item().PaddingBottom(10).Row(row => {
                         row.AutoItem().PaddingLeft(10).Text($"{count}. ").FontSize(12);
