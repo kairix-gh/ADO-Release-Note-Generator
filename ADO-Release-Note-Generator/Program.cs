@@ -171,7 +171,7 @@ internal class Program {
         var connection = new VssConnection(Config.AzureDevOps.Uri, credentials);
         var client = connection.GetClient<WorkItemTrackingHttpClient>();
 
-        // Get Bug List
+        // Get Bug Items
         wiql.Query = Config.WorkItems.FixesQuery;
         var results = await client.QueryByWiqlAsync(wiql);
         var ids = results.WorkItems.Select(i => i.Id).ToArray();
@@ -180,6 +180,7 @@ internal class Program {
             bugs = await client.GetWorkItemsAsync(ids, Config.WorkItems.WorkItemFieldArray, results.AsOf);
         }
 
+        // Get Feature items
         wiql.Query = Config.WorkItems.FeaturesQuery;
         results = await client.QueryByWiqlAsync(wiql);
         ids = results.WorkItems.Select(i => i.Id).ToArray();

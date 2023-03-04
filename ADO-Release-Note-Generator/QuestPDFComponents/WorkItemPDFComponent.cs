@@ -24,9 +24,10 @@ namespace ADO_Release_Note_Generator.QuestPDFComponents {
             container.Column(col => {
                 col.Item().Text(title).FontSize(16);
                 foreach (WorkItem item in items) {
-                    if (!item.Fields.TryGetValue("Custom.ReleaseNotesNotes", out itemDesc)) {
+                    if (!item.Fields.TryGetValue("Custom.ReleaseNotesNotes", out itemDesc) &&
+                        !item.Fields.TryGetValue("TranscendentAgile.ReleaseNotes", out itemDesc)) {
 #if DEBUG
-                        itemDesc = Placeholders.LoremIpsum();
+                        itemDesc = $"{Placeholders.Sentence()} {Placeholders.Sentence()}";
 #else
                         if (skipItems) {
                             continue;
