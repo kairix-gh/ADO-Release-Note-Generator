@@ -28,6 +28,8 @@ internal class Program {
             return;
         }
 
+        ParseArgs(args);
+
         // Get work items from ADO
         List<WorkItem> bugs = new List<WorkItem>();
         List<WorkItem> stories = new List<WorkItem>();
@@ -112,6 +114,25 @@ internal class Program {
         }).GeneratePdf(outputFile);
 
         Console.WriteLine("Done");
+    }
+
+    private static void ParseArgs(string[] args) {
+        if (args.Length == 0) return;
+
+        Console.WriteLine("Parsing args");
+        Dictionary<string, Action<string>> argsMap = new Dictionary<string, Action<string>>() {
+            { "r", (string p) => { Config.ReleaseInfo.Version = p; } },
+            { "d", (string p) => { Config.ReleaseInfo.Date = p; } }
+        };
+
+        for (int i = 0; i < args.Length; i += 2) {
+            try {
+                Console.WriteLine($"Executing: {args[i]} with param {args[i + 1]}");
+                argsMap[args[i].Substring(1)](args[i + 1]);
+            } catch (Exception ex) {
+                Console.WriteLine(ex.ToString());
+            }
+        }
     }
 
     private static async Task<Tuple<List<WorkItem>, List<WorkItem>>> GetAzureDevOpsWorkItems() {
