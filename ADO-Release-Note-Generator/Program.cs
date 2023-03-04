@@ -36,8 +36,9 @@ internal class Program {
 
         (stories, bugs) = await GetAzureDevOpsWorkItems();
 
-        string outputFile = $"Transcendent Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.Year}.{Config.ReleaseInfo.DateTime.Month.ToString().PadLeft(2, '0')}.{Config.ReleaseInfo.DateTime.Day.ToString().PadLeft(2, '0')}.pdf";
+        string outputFileName = $"Transcendent Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.Year}.{Config.ReleaseInfo.DateTime.Month.ToString().PadLeft(2, '0')}.{Config.ReleaseInfo.DateTime.Day.ToString().PadLeft(2, '0')}.pdf";
 
+        // Create PDF file and save to disk
         Document.Create(container => {
             // Cover Page
             container.Page(page => {
@@ -111,7 +112,7 @@ internal class Program {
                     });
                 });
             });
-        }).GeneratePdf(outputFile);
+        }).GeneratePdf(outputFileName);
 
         Console.WriteLine("Done");
     }
