@@ -227,12 +227,12 @@ internal class Program {
             if (wig.FieldArray.Length == 0) {
                 return false;
             } else {
-                if (!Array.Exists(wig.FieldArray, e => e.ToLower() == "system.title")) {
-                    wig.Fields += ", System.Title";
+                if (!Array.Exists(wig.FieldArray, e => e.ToLower() == wig.TitleField.ToLower())) {
+                    wig.Fields += $", {wig.TitleField}";
                 }
 
-                if (!Array.Exists(wig.FieldArray, e => e.ToLower() == "custom.releasenotesnotes")) {
-                    wig.Fields += ", Custom.ReleaseNotesNotes";
+                if (!Array.Exists(wig.FieldArray, e => e.ToLower() == wig.DescriptionField.ToLower())) {
+                    wig.Fields += $", {wig.DescriptionField}";
                 }
             }
         }
