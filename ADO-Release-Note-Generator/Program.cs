@@ -61,7 +61,7 @@ internal class Program {
                     // Content
                     page.Content().AlignMiddle().Column(col => {
                         col.Item().PaddingBottom(10).Text("Release Notes").SemiBold().FontSize(26);
-                        col.Item().Text($"{Config.ReleaseInfo.DateTime.ToString("MMMM dd, yyyy")} Update");
+                        col.Item().Text($"Update {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.ToString("MMMM dd, yyyy")}");
                     });
 
                     // Footer
