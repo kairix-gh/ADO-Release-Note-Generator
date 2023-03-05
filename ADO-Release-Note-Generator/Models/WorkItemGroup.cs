@@ -14,5 +14,8 @@
         }
 
         public string[] FieldArray { get; private set; } = new string[0];
+
+        public string TitleField { get; set; } = "";
+        public string DescriptionField { get; set; } = "";
     }
 }

@@ -13,7 +13,6 @@
 
         public ReleaseInfoConfig ReleaseInfo { get; set; } = new ReleaseInfoConfig();
         public AzureDevOpsConfig AzureDevOps { get; set; } = new AzureDevOpsConfig();
-        //public WorkItemConfig WorkItems { get; set; } = new WorkItemConfig();
 
         public List<WorkItemGroup> WorkItemGroups { get; set; } = new List<WorkItemGroup>();
     }

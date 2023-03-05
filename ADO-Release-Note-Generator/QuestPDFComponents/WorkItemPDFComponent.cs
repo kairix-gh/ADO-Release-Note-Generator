@@ -1,4 +1,5 @@
-﻿using ADO_Release_Note_Generator.Utils;
+﻿using ADO_Release_Note_Generator.Models;
+using ADO_Release_Note_Generator.Utils;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Common;
 using QuestPDF.Fluent;
@@ -10,22 +11,33 @@ namespace ADO_Release_Note_Generator.QuestPDFComponents {
         private string title = "Work Items";
         private IEnumerable<WorkItem> items = new List<WorkItem>();
         private bool skipItems = true;
+        private WorkItemGroup itemGroup;
 
-        public WorkItemPDFComponent(string title, IEnumerable<WorkItem> items, bool skipItems) {
+        public WorkItemPDFComponent(string title, WorkItemGroup itemGroup, IEnumerable<WorkItem> items, bool skipItems) {
             this.title = title;
             this.items = items;
             this.skipItems = skipItems;
+            this.itemGroup = itemGroup;
         }
 
         public void Compose(IContainer container) {
             int count = 1;
+            string itemTitle = "";
             string itemDesc = "";
 
             container.Column(col => {
                 col.Item().Text(title).FontSize(16);
                 foreach (WorkItem item in items) {
-                    if (!item.Fields.TryGetValue("Custom.ReleaseNotesNotes", out itemDesc) &&
-                        !item.Fields.TryGetValue("TranscendentAgile.ReleaseNotes", out itemDesc)) {
+                    // Ensure we have title and description
+                    if (!item.Fields.TryGetValue(itemGroup.TitleField, out itemTitle)) {
+#if DEBUG
+                        itemTitle = $"{itemGroup.Name} Item";
+#else
+                        continue;
+#endif
+                    }
+
+                    if (!item.Fields.TryGetValue(itemGroup.DescriptionField, out itemDesc)) {
 #if DEBUG
                         itemDesc = $"{Placeholders.Sentence()} {Placeholders.Sentence()}";
 #else
@@ -44,7 +56,7 @@ namespace ADO_Release_Note_Generator.QuestPDFComponents {
                         row.Spacing(10);
 
                         row.RelativeItem().Column(col => {
-                            col.Item().Text(item.Fields["System.Title"]?.ToString()).FontSize(12);
+                            col.Item().Text(itemTitle).FontSize(12);
                             col.Item().Text(itemDesc).FontSize(12).FontColor(Colors.Grey.Darken3);
                         });
                     });

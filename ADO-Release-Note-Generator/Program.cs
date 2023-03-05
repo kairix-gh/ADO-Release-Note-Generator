@@ -13,7 +13,6 @@ internal class Program {
     private static bool useFooterImage = true;
     private static bool useHeaderImage = true;
     private static AppConfig Config = new AppConfig();
-    //private static Dictionary<string, List<WorkItem>>
 
     private static async Task Main(string[] args) {
         // Setup Configuration
@@ -102,22 +101,17 @@ internal class Program {
                     // Notes Content
                     page.Content().PaddingVertical(1, Unit.Centimetre).Column(col => {
                         var last = workItemsForRelease.Last();
+
                         foreach (var kv in workItemsForRelease) {
-                            col.Item().Component(new WorkItemPDFComponent(kv.Key, kv.Value, Config.SkipWorkItemsWithNoNotes));
+                            var itemGroup = Config.WorkItemGroups.Find(e => e.Name.ToLower() == kv.Key.ToLower());
+
+                            if (itemGroup == null) continue;
+                            col.Item().Component(new WorkItemPDFComponent(kv.Key, itemGroup, kv.Value, Config.SkipWorkItemsWithNoNotes));
 
                             if (kv.Key != last.Key) {
                                 col.Item().PageBreak();
                             }
                         }
-                        /*
-                        // Write Features
-                        col.Item().Component(new WorkItemPDFComponent("Features", stories, Config.SkipWorkItemsWithNoNotes));
-
-                        col.Item().PageBreak();
-
-                        // Write Fixes
-                        col.Item().Component(new WorkItemPDFComponent("Fixes", bugs, Config.SkipWorkItemsWithNoNotes));
-                        */
                     });
 
                     // Notes Footer
@@ -202,27 +196,6 @@ internal class Program {
         }
 
         return ret;
-        /*
-        // Get Bug Items
-        wiql.Query = Config.WorkItems.FixesQuery;
-        var results = await client.QueryByWiqlAsync(wiql);
-        var ids = results.WorkItems.Select(i => i.Id).ToArray();
-
-        if (ids.Length > 0) {
-            bugs = await client.GetWorkItemsAsync(ids, Config.WorkItems.WorkItemFieldArray, results.AsOf);
-        }
-
-        // Get Feature items
-        wiql.Query = Config.WorkItems.FeaturesQuery;
-        results = await client.QueryByWiqlAsync(wiql);
-        ids = results.WorkItems.Select(i => i.Id).ToArray();
-
-        if (ids.Length > 0) {
-            stories = await client.GetWorkItemsAsync(ids, Config.WorkItems.WorkItemFieldArray, results.AsOf);
-        }
-
-        return Tuple.Create(stories, bugs);
-        */
     }
 
     private static bool ValidateConfiguration() {
@@ -263,30 +236,6 @@ internal class Program {
                 }
             }
         }
-
-        // Confirm we have a query to retreive features
-        /*if (string.IsNullOrWhiteSpace(Config.WorkItems.FeaturesQuery.Trim())) {
-            return false;
-        }
-
-        // Confirm we have a query to retreive bug fixes
-        if (string.IsNullOrWhiteSpace(Config.WorkItems.FixesQuery.Trim())) {
-            return false;
-        }
-
-        // Confirm we have a fields from the Work Items & that we
-        // always have the required fields.
-        if (Config.WorkItems.WorkItemFieldArray.Length == 0) {
-            return false;
-        } else {
-            if (!Array.Exists(Config.WorkItems.WorkItemFieldArray, e => e.ToLower() == "system.title")) {
-                Config.WorkItems.WorkItemFields += ", System.Title";
-            }
-
-            if (!Array.Exists(Config.WorkItems.WorkItemFieldArray, e => e.ToLower() == "custom.releasenotesnotes")) {
-                Config.WorkItems.WorkItemFields += ", Custom.ReleaseNotesNotes";
-            }
-        }*/
 
         return true;
     }
