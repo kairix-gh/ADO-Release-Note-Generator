@@ -8,6 +8,9 @@ using Microsoft.VisualStudio.Services.WebApi;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using Serilog;
+using Serilog.Context;
+using Serilog.Filters;
 
 internal class Program {
     private static bool useFooterImage = true;
@@ -15,6 +18,25 @@ internal class Program {
     private static AppConfig Config = new AppConfig();
 
     private static async Task Main(string[] args) {
+        // Initialize Logger
+        Log.Logger = new LoggerConfiguration()
+#if DEBUG
+            .MinimumLevel.Debug()
+#else
+            .MinimumLevel.Information()
+#endif
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .WriteTo.Logger(lc => {
+                lc.Filter.ByIncludingOnly(Matching.WithProperty("FileLog"));
+                lc.WriteTo.Map("FileName", "", (fileName, wt) => {
+                    if (!string.IsNullOrWhiteSpace(fileName)) {
+                        wt.File($"{fileName}.txt");
+                    }
+                });
+            })
+            .CreateLogger();
+
         // Setup Configuration
         var configRoot = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json")
@@ -33,23 +55,20 @@ internal class Program {
 
         // Get work items from ADO
         Dictionary<string, List<WorkItem>> workItemsForRelease = new Dictionary<string, List<WorkItem>>();
-        List<WorkItem> bugs = new List<WorkItem>();
-        List<WorkItem> stories = new List<WorkItem>();
 
         try {
-            //(stories, bugs) = await GetAzureDevOpsWorkItems();
+            Log.Debug("Retreivinig Work Items from Azure DevOps");
             workItemsForRelease = await GetAzureDevOpsWorkItems();
         } catch (VssUnauthorizedException) {
-            Console.WriteLine($"Invalid credentials were provided to access Azure DevOps, please check configuration settings.");
+            Log.Fatal("Invalid credentials were provided to access Azure DevOps, please check the configuration settings in {0}", "appsettings.json");
             return;
         } catch (Exception ex) {
-            Console.WriteLine($"Ran into an unexpected error while retreiving Azure DevOps work items.");
-            Console.WriteLine($"{ex.Message}");
+            Log.Fatal(ex, "An unexpected error occured while retriving items from Azue DevOps.");
             return;
         }
 
         string outputFileName = GetOutputFile();
-        Console.WriteLine($"Generating Release Notes, and saving to: {outputFileName}");
+        Log.Information("Generating Release Notes, and saving to: {0}", outputFileName);
 
         // Create PDF file and save to disk
         try {
@@ -131,19 +150,24 @@ internal class Program {
                 });
             }).GeneratePdf($"{outputFileName}");
         } catch (UnauthorizedAccessException ex) {
-            Console.WriteLine($"We were unable to save the release notes document to the specified path.");
-            Console.WriteLine($"Exception Message: {ex.Message}");
+            Log.Fatal("Unable to save the release notes document to the specified path: {0}. Reason: {1}", outputFileName, ex.Message);
+            return;
         } catch (Exception ex) {
-            Console.WriteLine($"Ran into an unexpected error while composing PDF document.");
-            Console.WriteLine($"{ex.Message}");
+            Log.Fatal(ex, "An unexpected error occured while generating the release notes document.");
+            return;
         }
-        Console.WriteLine("Done");
+
+        Log.CloseAndFlush();
+        Log.Information("Release Notes Generated Successfully!");
+    }
+
+    private static void CreateLogger() {
     }
 
     private static string GetOutputFile() {
         string fileName = $"Transcendent Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.Year}.{Config.ReleaseInfo.DateTime.Month.ToString().PadLeft(2, '0')}.{Config.ReleaseInfo.DateTime.Day.ToString().PadLeft(2, '0')}.pdf";
         if (string.IsNullOrWhiteSpace(Config.OutputPath)) {
-            return fileName;
+            return Path.Combine(AppContext.BaseDirectory, fileName);
         }
 
         return Path.Combine(Config.OutputPath, fileName);
@@ -152,19 +176,23 @@ internal class Program {
     private static void ParseArgs(string[] args) {
         if (args.Length == 0) return;
 
-        Console.WriteLine("Parsing args");
+        Log.Debug("Parsing Args");
         Dictionary<string, Action<string>> argsMap = new Dictionary<string, Action<string>>() {
             { "r", (string p) => { Config.ReleaseInfo.Version = p; } },
             { "d", (string p) => { Config.ReleaseInfo.Date = p; } },
             { "o", (string p) => { Config.OutputPath = p; } },
+            { "l", (string p) => {
+                LogContext.PushProperty("FileLog", true);
+                LogContext.PushProperty("FileName", p);
+            } }
         };
 
         for (int i = 0; i < args.Length; i += 2) {
             try {
-                Console.WriteLine($"Executing: {args[i]} with param {args[i + 1]}");
+                Log.Information("Executing '{0}' with param {1}.", args[i], args[i + 1]);
                 argsMap[args[i].Substring(1)](args[i + 1]);
             } catch (Exception ex) {
-                Console.WriteLine(ex.ToString());
+                Log.Error(ex, "An unexpected error occured while parsing args.");
             }
         }
     }
@@ -181,14 +209,17 @@ internal class Program {
         var client = connection.GetClient<WorkItemTrackingHttpClient>();
 
         foreach (WorkItemGroup group in Config.WorkItemGroups) {
+            Log.Information("Retreiving Work Items for {0} using {1} as the title and {2} as the description.", group.Name, group.TitleField, group.DescriptionField);
             if (!ret.ContainsKey(group.Name)) {
                 ret.Add(group.Name, new List<WorkItem>());
             }
 
             wiql.Query = group.Query;
 
+            Log.Debug("Executing WIQL query: {0}", group.Query);
             var results = await client.QueryByWiqlAsync(wiql);
             var ids = results.WorkItems.Select(i => i.Id).ToArray();
+            Log.Debug("Found {0} work items for group {1}", ids.Length, group.Name);
 
             if (ids.Length > 0) {
                 ret[group.Name] = await client.GetWorkItemsAsync(ids, group.FieldArray, results.AsOf);
