@@ -161,9 +161,6 @@ internal class Program {
         Log.Information("Release Notes Generated Successfully!");
     }
 
-    private static void CreateLogger() {
-    }
-
     private static string GetOutputFile() {
         string fileName = $"Transcendent Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.Year}.{Config.ReleaseInfo.DateTime.Month.ToString().PadLeft(2, '0')}.{Config.ReleaseInfo.DateTime.Day.ToString().PadLeft(2, '0')}.pdf";
         if (string.IsNullOrWhiteSpace(Config.OutputPath)) {
