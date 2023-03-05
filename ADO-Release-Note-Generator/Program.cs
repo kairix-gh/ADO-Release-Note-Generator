@@ -13,6 +13,7 @@ internal class Program {
     private static bool useFooterImage = true;
     private static bool useHeaderImage = true;
     private static AppConfig Config = new AppConfig();
+    //private static Dictionary<string, List<WorkItem>>
 
     private static async Task Main(string[] args) {
         // Setup Configuration
@@ -32,11 +33,13 @@ internal class Program {
         ParseArgs(args);
 
         // Get work items from ADO
+        Dictionary<string, List<WorkItem>> workItemsForRelease = new Dictionary<string, List<WorkItem>>();
         List<WorkItem> bugs = new List<WorkItem>();
         List<WorkItem> stories = new List<WorkItem>();
 
         try {
-            (stories, bugs) = await GetAzureDevOpsWorkItems();
+            //(stories, bugs) = await GetAzureDevOpsWorkItems();
+            workItemsForRelease = await GetAzureDevOpsWorkItems();
         } catch (VssUnauthorizedException) {
             Console.WriteLine($"Invalid credentials were provided to access Azure DevOps, please check configuration settings.");
             return;
@@ -98,6 +101,15 @@ internal class Program {
 
                     // Notes Content
                     page.Content().PaddingVertical(1, Unit.Centimetre).Column(col => {
+                        var last = workItemsForRelease.Last();
+                        foreach (var kv in workItemsForRelease) {
+                            col.Item().Component(new WorkItemPDFComponent(kv.Key, kv.Value, Config.SkipWorkItemsWithNoNotes));
+
+                            if (kv.Key != last.Key) {
+                                col.Item().PageBreak();
+                            }
+                        }
+                        /*
                         // Write Features
                         col.Item().Component(new WorkItemPDFComponent("Features", stories, Config.SkipWorkItemsWithNoNotes));
 
@@ -105,6 +117,7 @@ internal class Program {
 
                         // Write Fixes
                         col.Item().Component(new WorkItemPDFComponent("Fixes", bugs, Config.SkipWorkItemsWithNoNotes));
+                        */
                     });
 
                     // Notes Footer
@@ -162,15 +175,34 @@ internal class Program {
         }
     }
 
-    private static async Task<Tuple<List<WorkItem>, List<WorkItem>>> GetAzureDevOpsWorkItems() {
+    private static async Task<Dictionary<string, List<WorkItem>>> GetAzureDevOpsWorkItems() {
         Wiql wiql = new Wiql();
         List<WorkItem> bugs = new List<WorkItem>();
         List<WorkItem> stories = new List<WorkItem>();
+
+        Dictionary<string, List<WorkItem>> ret = new Dictionary<string, List<WorkItem>>();
 
         var credentials = new VssBasicCredential(Config.AzureDevOps.Token, string.Empty);
         var connection = new VssConnection(Config.AzureDevOps.Uri, credentials);
         var client = connection.GetClient<WorkItemTrackingHttpClient>();
 
+        foreach (WorkItemGroup group in Config.WorkItemGroups) {
+            if (!ret.ContainsKey(group.Name)) {
+                ret.Add(group.Name, new List<WorkItem>());
+            }
+
+            wiql.Query = group.Query;
+
+            var results = await client.QueryByWiqlAsync(wiql);
+            var ids = results.WorkItems.Select(i => i.Id).ToArray();
+
+            if (ids.Length > 0) {
+                ret[group.Name] = await client.GetWorkItemsAsync(ids, group.FieldArray, results.AsOf);
+            }
+        }
+
+        return ret;
+        /*
         // Get Bug Items
         wiql.Query = Config.WorkItems.FixesQuery;
         var results = await client.QueryByWiqlAsync(wiql);
@@ -190,6 +222,7 @@ internal class Program {
         }
 
         return Tuple.Create(stories, bugs);
+        */
     }
 
     private static bool ValidateConfiguration() {
@@ -213,8 +246,26 @@ internal class Program {
             return false;
         }
 
+        foreach (WorkItemGroup wig in Config.WorkItemGroups) {
+            if (string.IsNullOrWhiteSpace(wig.Query.Trim())) {
+                return false;
+            }
+
+            if (wig.FieldArray.Length == 0) {
+                return false;
+            } else {
+                if (!Array.Exists(wig.FieldArray, e => e.ToLower() == "system.title")) {
+                    wig.Fields += ", System.Title";
+                }
+
+                if (!Array.Exists(wig.FieldArray, e => e.ToLower() == "custom.releasenotesnotes")) {
+                    wig.Fields += ", Custom.ReleaseNotesNotes";
+                }
+            }
+        }
+
         // Confirm we have a query to retreive features
-        if (string.IsNullOrWhiteSpace(Config.WorkItems.FeaturesQuery.Trim())) {
+        /*if (string.IsNullOrWhiteSpace(Config.WorkItems.FeaturesQuery.Trim())) {
             return false;
         }
 
@@ -235,7 +286,7 @@ internal class Program {
             if (!Array.Exists(Config.WorkItems.WorkItemFieldArray, e => e.ToLower() == "custom.releasenotesnotes")) {
                 Config.WorkItems.WorkItemFields += ", Custom.ReleaseNotesNotes";
             }
-        }
+        }*/
 
         return true;
     }
