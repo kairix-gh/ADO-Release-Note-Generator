@@ -188,8 +188,10 @@ internal class Program {
             try {
                 Log.Information("Executing '{0}' with param {1}.", args[i], args[i + 1]);
                 argsMap[args[i].Substring(1)](args[i + 1]);
+            } catch (IndexOutOfRangeException ex) {
+                Log.Error(ex, "Missing parameter for argument {0}. The {0} argument will be ignored", args[i]);
             } catch (Exception ex) {
-                Log.Error(ex, "An unexpected error occured while parsing args.");
+                Log.Error(ex, "An unexpected error occured while parsing the argument {0}.", args[i]);
             }
         }
     }

@@ -9,6 +9,11 @@
     <UserSecretsId>b4a5b96c-9b36-4279-822a-a882526d6965</UserSecretsId>
   </PropertyGroup>
 
+
+  <PropertyGroup>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+  
   <ItemGroup>
     <PackageReference Include="HtmlAgilityPack" Version="1.11.46" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0" />
