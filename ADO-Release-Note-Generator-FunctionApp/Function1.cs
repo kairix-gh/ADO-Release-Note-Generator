@@ -34,7 +34,8 @@ namespace ADO_Release_Note_Generator_FunctionApp {
                 // Set function context to true so we use the right paths for loading images!
                 Config.FunctionContext = true;
                 Config.FunctionPath = context.FunctionAppDirectory;
-                if (!true) {
+
+                if (!Config.IsValidConfig()) {
                     return new BadRequestObjectResult("Invalid Request Body");
                 }
             } catch (Exception ex) {

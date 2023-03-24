@@ -22,5 +22,42 @@
         public string GetBasePath() {
             return (FunctionContext ? FunctionPath : AppContext.BaseDirectory);
         }
+
+        // This is bad, should return validation errors instead of bool
+        public bool IsValidConfig() {
+            if (FunctionContext && string.IsNullOrWhiteSpace(FunctionPath)) {
+                return false;
+            }
+
+            // If we don't have a valid ADO Url, we cannot retreive items
+            if (!Uri.IsWellFormedUriString(AzureDevOps.Url, UriKind.Absolute)) {
+                return false;
+            }
+
+            // Check if we have a valid ADO token
+            if (string.IsNullOrWhiteSpace(AzureDevOps.Token.Trim())) {
+                return false;
+            }
+
+            foreach (WorkItemGroup wig in WorkItemGroups) {
+                if (string.IsNullOrWhiteSpace(wig.Query.Trim())) {
+                    return false;
+                }
+
+                if (wig.FieldArray.Length == 0) {
+                    return false;
+                } else {
+                    if (!Array.Exists(wig.FieldArray, e => e.ToLower() == wig.TitleField.ToLower())) {
+                        wig.Fields += $", {wig.TitleField}";
+                    }
+
+                    if (!Array.Exists(wig.FieldArray, e => e.ToLower() == wig.DescriptionField.ToLower())) {
+                        wig.Fields += $", {wig.DescriptionField}";
+                    }
+                }
+            }
+
+            return true;
+        }
     }
 }
