@@ -48,17 +48,6 @@ internal class Program {
 
         // Get work items from ADO
         Dictionary<string, List<WorkItem>> workItemsForRelease = await Utils.GetAzureDevOpsWorkItems(Config, Log.Logger);
-        /*
-        try {
-            Log.Debug("Retreivinig Work Items from Azure DevOps");
-            workItemsForRelease = await GetAzureDevOpsWorkItems();
-        } catch (VssUnauthorizedException) {
-            Log.Fatal("Invalid credentials were provided to access Azure DevOps, please check the configuration settings in {0}", "appsettings.json");
-            return;
-        } catch (Exception ex) {
-            Log.Fatal(ex, "An unexpected error occured while retriving items from Azue DevOps.");
-            return;
-        }*/
 
         string outputFileName = Utils.GetOutputFilename(Config);
         Log.Information("Generating Release Notes, and saving to: {0}", outputFileName);
@@ -76,93 +65,6 @@ internal class Program {
             Log.Fatal(ex, "An unexpected error occured while generating the release notes document.");
             return;
         }
-
-        /*
-        try {
-            Document.Create(container => {
-                // Cover Page
-                container.Page(page => {
-                    page.Size(PageSizes.A4);
-                    page.Margin(2, Unit.Centimetre);
-                    page.PageColor(Colors.White);
-
-                    // Content
-                    page.Content().AlignMiddle().Column(col => {
-                        col.Item().PaddingBottom(10).Text("Release Notes").SemiBold().FontSize(26);
-                        col.Item().Text($"Update {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.ToString("MMMM dd, yyyy")}");
-                    });
-
-                    // Footer
-                    page.Footer().AlignMiddle().Row(row => {
-                        if (useFooterImage) {
-                            row.AutoItem().AlignLeft().Height(48).Hyperlink(Config.FooterHyperlink).Image(Path.Combine(AppContext.BaseDirectory, Config.FooterImagePath), ImageScaling.FitHeight);
-                        } else {
-                            row.AutoItem().AlignLeft().Width(48).Height(36).PaddingRight(10).Hyperlink(Config.FooterHyperlink).Placeholder();
-                        }
-
-                        row.RelativeItem().AlignMiddle().Column(col => {
-                            col.Item().Text(Config.FooterAddress);
-                            col.Item().Hyperlink(Config.FooterHyperlink).Text(Config.FooterHyperlinkText);
-                        });
-                    });
-                });
-
-                // Notes Page
-                container.Page(page => {
-                    page.Size(PageSizes.A4);
-                    page.Margin(2, Unit.Centimetre);
-                    page.PageColor(Colors.White);
-
-                    // Notes Header
-                    page.Header().AlignMiddle().Row(row => {
-                        if (useHeaderImage) {
-                            row.AutoItem().AlignLeft().Width(200).Height(36).Image(Path.Combine(AppContext.BaseDirectory, Config.HeaderImagePath), ImageScaling.FitHeight);
-                        } else {
-                            row.AutoItem().AlignLeft().Width(125).Height(36).Placeholder();
-                        }
-
-                        row.RelativeItem().AlignRight().AlignMiddle().Text($"Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.ToString("M/dd/yyyy")}").FontColor(Colors.Grey.Darken2);
-                    });
-
-                    // Notes Content
-                    page.Content().PaddingVertical(1, Unit.Centimetre).Column(col => {
-                        var last = workItemsForRelease.Last();
-
-                        foreach (var kv in workItemsForRelease) {
-                            var itemGroup = Config.WorkItemGroups.Find(e => e.Name.ToLower() == kv.Key.ToLower());
-
-                            if (itemGroup == null) continue;
-                            col.Item().Component(new WorkItemPDFComponent(kv.Key, itemGroup, kv.Value, Config.SkipWorkItemsWithNoNotes));
-
-                            if (kv.Key != last.Key) {
-                                col.Item().PageBreak();
-                            }
-                        }
-                    });
-
-                    // Notes Footer
-                    page.Footer().Column(col => {
-                        col.Item().LineHorizontal(1).LineColor(Colors.Grey.Darken2);
-                        col.Spacing(2);
-                        col.Item().Row(row => {
-                            row.AutoItem().AlignLeft().Text($"Copyright {DateTime.Now.Year}, Transcendent© Corporation").FontColor(Colors.Grey.Darken2); ;
-                            row.RelativeItem().AlignRight().Text(x => {
-                                x.Span("Page ").FontColor(Colors.Grey.Darken2); ;
-                                x.CurrentPageNumber().FontColor(Colors.Grey.Darken2); ;
-                                x.Span(" of ").FontColor(Colors.Grey.Darken2); ;
-                                x.TotalPages().FontColor(Colors.Grey.Darken2); ;
-                            });
-                        });
-                    });
-                });
-            }).GeneratePdf($"{outputFileName}");
-        } catch (UnauthorizedAccessException ex) {
-            Log.Fatal("Unable to save the release notes document to the specified path: {0}. Reason: {1}", outputFileName, ex.Message);
-            return;
-        } catch (Exception ex) {
-            Log.Fatal(ex, "An unexpected error occured while generating the release notes document.");
-            return;
-        }*/
 
         Log.CloseAndFlush();
         Log.Information("Release Notes Generated Successfully!");
