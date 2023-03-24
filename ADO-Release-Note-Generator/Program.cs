@@ -1,20 +1,13 @@
-﻿using ADO_Release_Note_Generator.Models;
-using ADO_Release_Note_Generator.QuestPDFComponents;
+﻿using ADO_Release_Note_Generator_Shared;
+using ADO_Release_Note_Generator_Shared.Models;
 using Microsoft.Extensions.Configuration;
-using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
-using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using Serilog;
 using Serilog.Context;
 using Serilog.Filters;
 
 internal class Program {
-    private static bool useFooterImage = true;
-    private static bool useHeaderImage = true;
     private static AppConfig Config = new AppConfig();
 
     private static async Task Main(string[] args) {
@@ -47,15 +40,15 @@ internal class Program {
 
         configRoot.Bind(Config);
 
-        if (!ValidateConfiguration()) {
+        if (!Config.IsValidConfig()) {
             return;
         }
 
         ParseArgs(args);
 
         // Get work items from ADO
-        Dictionary<string, List<WorkItem>> workItemsForRelease = new Dictionary<string, List<WorkItem>>();
-
+        Dictionary<string, List<WorkItem>> workItemsForRelease = await Utils.GetAzureDevOpsWorkItems(Config, Log.Logger);
+        /*
         try {
             Log.Debug("Retreivinig Work Items from Azure DevOps");
             workItemsForRelease = await GetAzureDevOpsWorkItems();
@@ -65,12 +58,26 @@ internal class Program {
         } catch (Exception ex) {
             Log.Fatal(ex, "An unexpected error occured while retriving items from Azue DevOps.");
             return;
-        }
+        }*/
 
-        string outputFileName = GetOutputFile();
+        string outputFileName = Utils.GetOutputFilename(Config);
         Log.Information("Generating Release Notes, and saving to: {0}", outputFileName);
 
         // Create PDF file and save to disk
+        try {
+            byte[] pdfDoc = Utils.GetPDFFile(Log.Logger, Config, workItemsForRelease);
+
+            using BinaryWriter writer = new BinaryWriter(File.OpenWrite(outputFileName));
+            writer.Write(pdfDoc);
+        } catch (UnauthorizedAccessException ex) {
+            Log.Fatal("Unable to save the release notes document to the specified path: {0}. Reason: {1}", outputFileName, ex.Message);
+            return;
+        } catch (Exception ex) {
+            Log.Fatal(ex, "An unexpected error occured while generating the release notes document.");
+            return;
+        }
+
+        /*
         try {
             Document.Create(container => {
                 // Cover Page
@@ -155,19 +162,10 @@ internal class Program {
         } catch (Exception ex) {
             Log.Fatal(ex, "An unexpected error occured while generating the release notes document.");
             return;
-        }
+        }*/
 
         Log.CloseAndFlush();
         Log.Information("Release Notes Generated Successfully!");
-    }
-
-    private static string GetOutputFile() {
-        string fileName = $"Transcendent Release {Config.ReleaseInfo.Version} - {Config.ReleaseInfo.DateTime.Year}.{Config.ReleaseInfo.DateTime.Month.ToString().PadLeft(2, '0')}.{Config.ReleaseInfo.DateTime.Day.ToString().PadLeft(2, '0')}.pdf";
-        if (string.IsNullOrWhiteSpace(Config.OutputPath)) {
-            return Path.Combine(AppContext.BaseDirectory, fileName);
-        }
-
-        return Path.Combine(Config.OutputPath, fileName);
     }
 
     private static void ParseArgs(string[] args) {
@@ -194,79 +192,5 @@ internal class Program {
                 Log.Error(ex, "An unexpected error occured while parsing the argument {0}.", args[i]);
             }
         }
-    }
-
-    private static async Task<Dictionary<string, List<WorkItem>>> GetAzureDevOpsWorkItems() {
-        Wiql wiql = new Wiql();
-        List<WorkItem> bugs = new List<WorkItem>();
-        List<WorkItem> stories = new List<WorkItem>();
-
-        Dictionary<string, List<WorkItem>> ret = new Dictionary<string, List<WorkItem>>();
-
-        var credentials = new VssBasicCredential(Config.AzureDevOps.Token, string.Empty);
-        var connection = new VssConnection(Config.AzureDevOps.Uri, credentials);
-        var client = connection.GetClient<WorkItemTrackingHttpClient>();
-
-        foreach (WorkItemGroup group in Config.WorkItemGroups) {
-            Log.Information("Retreiving Work Items for {0} using {1} as the title and {2} as the description.", group.Name, group.TitleField, group.DescriptionField);
-            if (!ret.ContainsKey(group.Name)) {
-                ret.Add(group.Name, new List<WorkItem>());
-            }
-
-            wiql.Query = group.Query;
-
-            Log.Debug("Executing WIQL query: {0}", group.Query);
-            var results = await client.QueryByWiqlAsync(wiql);
-            var ids = results.WorkItems.Select(i => i.Id).ToArray();
-            Log.Debug("Found {0} work items for group {1}", ids.Length, group.Name);
-
-            if (ids.Length > 0) {
-                ret[group.Name] = await client.GetWorkItemsAsync(ids, group.FieldArray, results.AsOf);
-            }
-        }
-
-        return ret;
-    }
-
-    private static bool ValidateConfiguration() {
-        // Check if the cover page footer image exists and is usable
-        if (!File.Exists(Path.Combine(AppContext.BaseDirectory, Config.FooterImagePath))) {
-            Program.useFooterImage = false;
-        }
-
-        // Check if the notes page header image exists and is usable
-        if (!File.Exists(Path.Combine(AppContext.BaseDirectory, Config.HeaderImagePath))) {
-            Program.useHeaderImage = false;
-        }
-
-        // If we don't have a valid ADO Url, we cannot retreive items
-        if (!Uri.IsWellFormedUriString(Config.AzureDevOps.Url, UriKind.Absolute)) {
-            return false;
-        }
-
-        // Check if we have a valid ADO token
-        if (string.IsNullOrWhiteSpace(Config.AzureDevOps.Token.Trim())) {
-            return false;
-        }
-
-        foreach (WorkItemGroup wig in Config.WorkItemGroups) {
-            if (string.IsNullOrWhiteSpace(wig.Query.Trim())) {
-                return false;
-            }
-
-            if (wig.FieldArray.Length == 0) {
-                return false;
-            } else {
-                if (!Array.Exists(wig.FieldArray, e => e.ToLower() == wig.TitleField.ToLower())) {
-                    wig.Fields += $", {wig.TitleField}";
-                }
-
-                if (!Array.Exists(wig.FieldArray, e => e.ToLower() == wig.DescriptionField.ToLower())) {
-                    wig.Fields += $", {wig.DescriptionField}";
-                }
-            }
-        }
-
-        return true;
     }
 }

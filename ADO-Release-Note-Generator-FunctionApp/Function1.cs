@@ -4,10 +4,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Extensions.Logging;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Common;
 using Newtonsoft.Json;
+using Serilog;
+using Serilog.Filters;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,8 +21,25 @@ namespace ADO_Release_Note_Generator_FunctionApp {
         private static AppConfig Config = new AppConfig();
 
         [FunctionName("GetNotes")]
-        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req, ExecutionContext context, ILogger log) {
-            logger = log;
+        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req, ExecutionContext context) {
+            // Initialize Logger
+            logger = new LoggerConfiguration()
+#if DEBUG
+                .MinimumLevel.Debug()
+#else
+            .MinimumLevel.Information()
+#endif
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .WriteTo.Logger(lc => {
+                    lc.Filter.ByIncludingOnly(Matching.WithProperty("FileLog"));
+                    lc.WriteTo.Map("FileName", "", (fileName, wt) => {
+                        if (!string.IsNullOrWhiteSpace(fileName)) {
+                            wt.File($"{fileName}.txt");
+                        }
+                    });
+                })
+                .CreateLogger();
 
             // First, we should initialize an object to represent the configuration, with default values from json file
             // this would represent the request being made, text, work items to retreive, access token, etc.
@@ -39,20 +57,20 @@ namespace ADO_Release_Note_Generator_FunctionApp {
                     return new BadRequestObjectResult("Invalid Request Body");
                 }
             } catch (Exception ex) {
-                log.LogError(ex, "Unhandled error: {0}", ex.Message);
+                logger.Error(ex, "Unhandled error: {0}", ex.Message);
             }
 
             // Afterwards, we should then retreive the work items
             Dictionary<string, List<WorkItem>> workItemsForRelease = new Dictionary<string, List<WorkItem>>();
 
             try {
-                logger.LogDebug("Retreivinig Work Items from Azure DevOps");
+                logger.Debug("Retreivinig Work Items from Azure DevOps");
                 workItemsForRelease = await Utils.GetAzureDevOpsWorkItems(Config, logger);
             } catch (VssUnauthorizedException) {
-                logger.LogCritical("Invalid credentials were provided to access Azure DevOps, please check the configuration settings in {0}", "appsettings.json");
+                logger.Fatal("Invalid credentials were provided to access Azure DevOps, please check the configuration settings in {0}", "appsettings.json");
                 return new BadRequestObjectResult("Invalid Azure DevOps Credentials");
             } catch (Exception ex) {
-                logger.LogCritical(ex, "An unexpected error occured while retriving items from Azue DevOps.");
+                logger.Fatal(ex, "An unexpected error occured while retriving items from Azue DevOps.");
                 return new InternalServerErrorResult();
             }
 

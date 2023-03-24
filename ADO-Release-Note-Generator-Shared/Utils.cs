@@ -1,6 +1,5 @@
 ﻿using ADO_Release_Note_Generator_Shared.Models;
 using ADO_Release_Note_Generator_Shared.QuestPDF;
-using Microsoft.Extensions.Logging;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Common;
@@ -8,6 +7,7 @@ using Microsoft.VisualStudio.Services.WebApi;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using Serilog;
 
 namespace ADO_Release_Note_Generator_Shared {
     public static class Utils {
@@ -23,17 +23,17 @@ namespace ADO_Release_Note_Generator_Shared {
             var client = connection.GetClient<WorkItemTrackingHttpClient>();
 
             foreach (WorkItemGroup group in Config.WorkItemGroups) {
-                logger.LogInformation("Retreiving Work Items for {0} using {1} as the title and {2} as the description.", group.Name, group.TitleField, group.DescriptionField);
+                logger.Information("Retreiving Work Items for {0} using {1} as the title and {2} as the description.", group.Name, group.TitleField, group.DescriptionField);
                 if (!ret.ContainsKey(group.Name)) {
                     ret.Add(group.Name, new List<WorkItem>());
                 }
 
                 wiql.Query = group.Query;
 
-                logger.LogDebug("Executing WIQL query: {0}", group.Query);
+                logger.Debug("Executing WIQL query: {0}", group.Query);
                 var results = await client.QueryByWiqlAsync(wiql);
                 var ids = results.WorkItems.Select(i => i.Id).ToArray();
-                logger.LogDebug("Found {0} work items for group {1}", ids.Length, group.Name);
+                logger.Debug("Found {0} work items for group {1}", ids.Length, group.Name);
 
                 if (ids.Length > 0) {
                     ret[group.Name] = await client.GetWorkItemsAsync(ids, group.FieldArray, results.AsOf);
@@ -140,12 +140,13 @@ namespace ADO_Release_Note_Generator_Shared {
                         });
                     });
                 }).GeneratePdf();
-                /*} catch (UnauthorizedAccessException ex) {
-                    logger.LogCritical("Unable to save the release notes document to the specified path: {0}. Reason: {1}", fileName, ex.Message);
-                    ret = Document.Create(doc => { doc.Page(p => { p.Content().Text("An unexpected error occured while saving the document."); }); }).GeneratePdf();*/
             } catch (Exception ex) {
-                logger.LogCritical(ex, "An unexpected error occured while generating the release notes document.");
-                ret = Document.Create(doc => { doc.Page(p => { p.Content().Text("An unexpected error occured while saving the document."); }); }).GeneratePdf();
+                if (Config.FunctionContext) {
+                    logger.Fatal(ex, "An unexpected error occured while generating the release notes document.");
+                    ret = Document.Create(doc => { doc.Page(p => { p.Content().Text("An unexpected error occured while saving the document."); }); }).GeneratePdf();
+                } else {
+                    throw;
+                }
             }
 
             return ret;
