@@ -20,8 +20,8 @@ namespace ADO_Release_Note_Generator_FunctionApp {
         private static ILogger logger;
         private static AppConfig Config = new AppConfig();
 
-        [FunctionName("GetNotes")]
-        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req, ExecutionContext context) {
+        [FunctionName("GetReleaseNotes")]
+        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req, ExecutionContext context) {
             // Initialize Logger
             logger = new LoggerConfiguration()
 #if DEBUG

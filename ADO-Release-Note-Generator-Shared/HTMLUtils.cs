@@ -12,6 +12,9 @@ namespace ADO_Release_Note_Generator.Utils {
 
             if (allowedTags == null) allowedTags = ALLOWED_TAGS;
 
+            // Replace &nbsp; or &quot; entities with string equivalents
+            html = HtmlEntity.DeEntitize(html);
+
             // Load html into an HtmlDocument object we can maniupulate
             var doc = new HtmlDocument() {
                 OptionWriteEmptyNodes = true,
@@ -57,7 +60,7 @@ namespace ADO_Release_Note_Generator.Utils {
             nodes = doc.DocumentNode.SelectNodes("//br");
             if (nodes != null) {
                 foreach (var node in nodes) {
-                    node.ParentNode.ReplaceChild(doc.CreateTextNode(Environment.NewLine), node);
+                    node.ParentNode.ReplaceChild(doc.CreateTextNode(Environment.NewLine + Environment.NewLine), node);
                 }
             }
 
