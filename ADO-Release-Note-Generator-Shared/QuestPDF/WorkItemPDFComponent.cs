@@ -29,7 +29,7 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
                 col.Item().Text(title).FontSize(16);
                 foreach (WorkItem item in items) {
                     // Ensure we have title and description
-                    if (!item.Fields.TryGetValue(itemGroup.TitleField, out itemTitle) || string.IsNullOrWhiteSpace(itemDesc)) {
+                    if (!item.Fields.TryGetValue(itemGroup.TitleField, out itemTitle) || string.IsNullOrWhiteSpace(itemTitle)) {
 #if DEBUG
                         itemTitle = $"{itemGroup.Name} Item";
 #else
