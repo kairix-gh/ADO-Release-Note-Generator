@@ -25,7 +25,7 @@ namespace ADO_Release_Note_Generator_FunctionApp {
             // Initialize Logger
             logger = new LoggerConfiguration()
 #if DEBUG
-                .MinimumLevel.Debug()
+            .MinimumLevel.Debug()
 #else
             .MinimumLevel.Information()
 #endif

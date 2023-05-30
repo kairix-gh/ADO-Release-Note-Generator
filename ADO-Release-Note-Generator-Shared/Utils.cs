@@ -13,8 +13,8 @@ namespace ADO_Release_Note_Generator_Shared {
     public static class Utils {
         public static async Task<Dictionary<string, List<WorkItem>>> GetAzureDevOpsWorkItems(AppConfig Config, ILogger logger) {
             Wiql wiql = new Wiql();
-            List<WorkItem> bugs = new List<WorkItem>();
-            List<WorkItem> stories = new List<WorkItem>();
+            //List<WorkItem> bugs = new List<WorkItem>();
+            //List<WorkItem> stories = new List<WorkItem>();
 
             Dictionary<string, List<WorkItem>> ret = new Dictionary<string, List<WorkItem>>();
 

@@ -29,7 +29,7 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
                 col.Item().Text(title).FontSize(16);
                 foreach (WorkItem item in items) {
                     // Ensure we have title and description
-                    if (!item.Fields.TryGetValue(itemGroup.TitleField, out itemTitle)) {
+                    if (!item.Fields.TryGetValue(itemGroup.TitleField, out itemTitle) || string.IsNullOrWhiteSpace(itemDesc)) {
 #if DEBUG
                         itemTitle = $"{itemGroup.Name} Item";
 #else
@@ -37,7 +37,7 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
 #endif
                     }
 
-                    if (!item.Fields.TryGetValue(itemGroup.DescriptionField, out itemDesc)) {
+                    if (!item.Fields.TryGetValue(itemGroup.DescriptionField, out itemDesc) || string.IsNullOrWhiteSpace(itemDesc)) {
 #if DEBUG
                         itemDesc = $"{Placeholders.Sentence()} {Placeholders.Sentence()}";
 #else
@@ -57,6 +57,7 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
 
                         row.RelativeItem().Column(col => {
                             col.Item().Text(itemTitle).FontSize(12);
+                            col.Item().Text("Dev Ops: " + item.Id.ToString()).FontSize(12);
                             col.Item().Text(itemDesc).FontSize(12).FontColor(Colors.Grey.Darken3);
                         });
                     });
