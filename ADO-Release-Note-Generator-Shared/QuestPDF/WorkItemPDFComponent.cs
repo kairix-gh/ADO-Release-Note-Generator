@@ -15,11 +15,16 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
         private bool skipItems = true;
         private WorkItemGroup itemGroup;
 
-        public WorkItemPDFComponent(string title, WorkItemGroup itemGroup, IEnumerable<WorkItem> items, bool skipItems) {
+        private int maxWidth;
+        private int maxHeight;
+
+        public WorkItemPDFComponent(string title, WorkItemGroup itemGroup, IEnumerable<WorkItem> items, bool skipItems, int maxWidth = 400, int maxHeight = 500) {
             this.title = title;
             this.items = items;
             this.skipItems = skipItems;
             this.itemGroup = itemGroup;
+            this.maxWidth = maxWidth;
+            this.maxHeight = maxHeight;
         }
 
         public void Compose(IContainer container) {
@@ -69,10 +74,26 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
                             col.Item().Inlined(inline => {
                                 // Check if we have an ImageList field and try to get the list of byte[]
                                 if (item.Fields.ContainsKey("ImageList")) {
-                                    if (item.Fields.TryGetValue<List<byte[]>>("ImageList", out List<byte[]> imageList)) {
-                                        foreach (byte[] imageData in imageList) {
+                                    if (item.Fields.TryGetValue("ImageList", out List<ReleaseNoteImageInfo> imageList)) {
+                                        foreach (ReleaseNoteImageInfo imageData in imageList) {
                                             try {
-                                                inline.Item().Image(imageData);
+                                                bool useResizeWidth = false;
+
+                                                if (imageData.Width > maxWidth || imageData.Height > maxHeight) {
+                                                    useResizeWidth = true;
+                                                }
+
+                                                // If our image exceeds maximum width/height we have QuestPDF resize the image
+                                                // for us.
+                                                if (useResizeWidth) {
+                                                    inline.Item().Image(imageData.Bytes, ImageScaling.FitWidth);
+                                                } else {
+                                                    // Otherwise we use the width/height of the image
+                                                    inline.Item()
+                                                        .Width(imageData.Width)
+                                                        .Height(imageData.Height)
+                                                    .Image(imageData.Bytes, ImageScaling.Resize);
+                                                }
                                             } catch (DocumentComposeException) {
                                                 // Likely because the byte[] couldn't be rendered to an image. Instead
                                                 // let's show placeholder graphics to indicate to the user that there

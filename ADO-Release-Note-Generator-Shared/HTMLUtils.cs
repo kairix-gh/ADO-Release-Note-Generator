@@ -1,4 +1,5 @@
-﻿using HtmlAgilityPack;
+﻿using ADO_Release_Note_Generator_Shared.Models;
+using HtmlAgilityPack;
 
 namespace ADO_Release_Note_Generator.Utils {
     public static class HTMLUtils {
@@ -67,10 +68,10 @@ namespace ADO_Release_Note_Generator.Utils {
             return doc.DocumentNode.InnerHtml;
         }
 
-        public static List<string> GetImageUrls(string html) {
-            if (string.IsNullOrWhiteSpace(html)) return Enumerable.Empty<string>().ToList();
+        public static List<ReleaseNoteImageInfo> GetImageUrls(string html) {
+            if (string.IsNullOrWhiteSpace(html)) return Enumerable.Empty<ReleaseNoteImageInfo>().ToList();
 
-            List<string> ret = new List<string>();
+            List<ReleaseNoteImageInfo> ret = new List<ReleaseNoteImageInfo>();
 
             // Replace &nbsp; or &quot; entities with string equivalents
             html = HtmlEntity.DeEntitize(html);
@@ -89,7 +90,11 @@ namespace ADO_Release_Note_Generator.Utils {
             // If we have nodes, then we add them up and return them
             if (nodes != null) {
                 foreach (var node in nodes) {
-                    ret.Add(node.Attributes["src"]?.Value ?? "");
+                    ret.Add(new ReleaseNoteImageInfo() {
+                        Url = node.Attributes["src"]?.Value ?? "",
+                        Width = int.Parse(node.Attributes["width"]?.Value ?? "0"),
+                        Height = int.Parse(node.Attributes["height"]?.Value ?? "0"),
+                    });
                 }
             }
 

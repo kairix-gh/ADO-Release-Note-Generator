@@ -9,6 +9,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Serilog;
+using SkiaSharp;
 
 namespace ADO_Release_Note_Generator_Shared {
     public static class Utils {
@@ -51,17 +52,29 @@ namespace ADO_Release_Note_Generator_Shared {
 #endif
                                 }
 
-                                List<string> imageUrls = HTMLUtils.GetImageUrls(itemDesc);
+                                List<ReleaseNoteImageInfo> imageUrls = HTMLUtils.GetImageUrls(itemDesc);
 
-                                foreach (string url in imageUrls) {
-                                    var imageArray = await GetAzureDevOpsWorkItemImages(logger, client, url);
+                                foreach (ReleaseNoteImageInfo imageInfo in imageUrls) {
+                                    var imageArray = await GetAzureDevOpsWorkItemImages(logger, client, imageInfo.Url);
 
                                     if (imageArray.Length > 0) {
+                                        imageInfo.Bytes = imageArray;
                                         if (!item.Fields.ContainsKey("ImageList")) {
-                                            item.Fields.Add("ImageList", new List<byte[]>());
+                                            item.Fields.Add("ImageList", new List<ReleaseNoteImageInfo>());
                                         }
 
-                                        (item.Fields["ImageList"] as List<byte[]>).Add(imageArray);
+                                        // Fix sizes
+                                        SKBitmap bitmap = SKBitmap.Decode(imageInfo.Bytes);
+
+                                        if (imageInfo.Width == 0) {
+                                            imageInfo.Width = bitmap.Width;
+                                        }
+
+                                        if (imageInfo.Height == 0) {
+                                            imageInfo.Height = bitmap.Height;
+                                        }
+
+                                        (item.Fields["ImageList"] as List<ReleaseNoteImageInfo>).Add(imageInfo);
                                     }
                                 }
                             })
@@ -174,6 +187,8 @@ namespace ADO_Release_Note_Generator_Shared {
                                 var itemGroup = Config.WorkItemGroups.Find(e => e.Name.ToLower() == kv.Key.ToLower());
 
                                 if (itemGroup == null) continue;
+
+                                // TODO: Calc safe width/height based on page size
                                 col.Item().Component(new WorkItemPDFComponent(kv.Key, itemGroup, kv.Value, Config.SkipWorkItemsWithNoNotes));
 
                                 if (kv.Key != last.Key) {
