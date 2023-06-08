@@ -1,4 +1,5 @@
-﻿using ADO_Release_Note_Generator_Shared.Models;
+﻿using ADO_Release_Note_Generator.Utils;
+using ADO_Release_Note_Generator_Shared.Models;
 using ADO_Release_Note_Generator_Shared.QuestPDF;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
@@ -13,8 +14,6 @@ namespace ADO_Release_Note_Generator_Shared {
     public static class Utils {
         public static async Task<Dictionary<string, List<WorkItem>>> GetAzureDevOpsWorkItems(AppConfig Config, ILogger logger) {
             Wiql wiql = new Wiql();
-            //List<WorkItem> bugs = new List<WorkItem>();
-            //List<WorkItem> stories = new List<WorkItem>();
 
             Dictionary<string, List<WorkItem>> ret = new Dictionary<string, List<WorkItem>>();
 
@@ -22,6 +21,7 @@ namespace ADO_Release_Note_Generator_Shared {
             var connection = new VssConnection(Config.AzureDevOps.Uri, credentials);
             var client = connection.GetClient<WorkItemTrackingHttpClient>();
 
+            // Iterate over each WorkItemGroup from the config/request
             foreach (WorkItemGroup group in Config.WorkItemGroups) {
                 logger.Information("Retreiving Work Items for {0} using {1} as the title and {2} as the description.", group.Name, group.TitleField, group.DescriptionField);
                 if (!ret.ContainsKey(group.Name)) {
@@ -36,11 +36,69 @@ namespace ADO_Release_Note_Generator_Shared {
                 logger.Debug("Found {0} work items for group {1}", ids.Length, group.Name);
 
                 if (ids.Length > 0) {
+                    // If we have work items, let's get them
                     ret[group.Name] = await client.GetWorkItemsAsync(ids, group.FieldArray, results.AsOf);
+
+                    // Get Images
+                    try {
+                        await Task.WhenAll(
+                            ret[group.Name].Select(async item => {
+                                if (!item.Fields.TryGetValue(group.DescriptionField, out string itemDesc) || string.IsNullOrWhiteSpace(itemDesc)) {
+#if DEBUG
+                                    itemDesc = $"{Placeholders.Sentence()} {Placeholders.Sentence()}";
+#else
+                                    return;
+#endif
+                                }
+
+                                List<string> imageUrls = HTMLUtils.GetImageUrls(itemDesc);
+
+                                foreach (string url in imageUrls) {
+                                    var imageArray = await GetAzureDevOpsWorkItemImages(logger, client, url);
+
+                                    if (imageArray.Length > 0) {
+                                        if (!item.Fields.ContainsKey("ImageList")) {
+                                            item.Fields.Add("ImageList", new List<byte[]>());
+                                        }
+
+                                        (item.Fields["ImageList"] as List<byte[]>).Add(imageArray);
+                                    }
+                                }
+                            })
+                        );
+                    } catch (Exception ex) {
+                        logger.Error(ex.Message);
+                    }
                 }
             }
 
             return ret;
+        }
+
+        public static async Task<byte[]> GetAzureDevOpsWorkItemImages(ILogger logger, WorkItemTrackingHttpClient client, string url) {
+            byte[] ret;
+
+            try {
+                Uri imgUrl = new Uri(url);
+                string[] urlParts = imgUrl.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                int guidIndex = urlParts.Length - 1;
+                Guid imgGuid = new Guid(urlParts[guidIndex]);
+
+                var imageStream = await client.GetAttachmentContentAsync(imgGuid);
+
+                using (var stream = new MemoryStream()) {
+                    imageStream.CopyTo(stream);
+                    ret = stream.ToArray();
+                }
+
+                if (ret == null) {
+                    ret = new byte[0];
+                }
+
+                return ret;
+            } catch (Exception) {
+                throw;
+            }
         }
 
         public static string GetOutputFilename(AppConfig Config, bool ignorePath = false) {

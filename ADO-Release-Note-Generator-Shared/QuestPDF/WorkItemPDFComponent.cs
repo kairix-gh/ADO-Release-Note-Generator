@@ -2,9 +2,11 @@
 using ADO_Release_Note_Generator_Shared.Models;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Common;
+using QuestPDF.Drawing.Exceptions;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.Net;
 
 namespace ADO_Release_Note_Generator_Shared.QuestPDF {
     internal class WorkItemPDFComponent : IComponent {
@@ -59,6 +61,29 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
                             col.Item().Text(itemTitle).FontSize(12);
                             col.Item().Text("Dev Ops: " + item.Id.ToString()).FontSize(12);
                             col.Item().Text(itemDesc).FontSize(12).FontColor(Colors.Grey.Darken3);
+
+                            col.Spacing(10);
+
+                            // Create an inline container for images, this will always be a little wonky because
+                            // of scaling.
+                            col.Item().Inlined(inline => {
+                                // Check if we have an ImageList field and try to get the list of byte[]
+                                if (item.Fields.ContainsKey("ImageList")) {
+                                    if (item.Fields.TryGetValue<List<byte[]>>("ImageList", out List<byte[]> imageList)) {
+                                        foreach (byte[] imageData in imageList) {
+                                            try {
+                                                inline.Item().Image(imageData);
+                                            } catch (DocumentComposeException) {
+                                                // Likely because the byte[] couldn't be rendered to an image. Instead
+                                                // let's show placeholder graphics to indicate to the user that there
+                                                // was an issue with their image. Otherwise they might assume it just
+                                                // "doesn't work".
+                                                inline.Item().Width(150).Height(75).Placeholder();
+                                            }
+                                        }
+                                    }
+                                }
+                            });
                         });
                     });
 

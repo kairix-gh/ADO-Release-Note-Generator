@@ -66,5 +66,34 @@ namespace ADO_Release_Note_Generator.Utils {
 
             return doc.DocumentNode.InnerHtml;
         }
+
+        public static List<string> GetImageUrls(string html) {
+            if (string.IsNullOrWhiteSpace(html)) return Enumerable.Empty<string>().ToList();
+
+            List<string> ret = new List<string>();
+
+            // Replace &nbsp; or &quot; entities with string equivalents
+            html = HtmlEntity.DeEntitize(html);
+
+            // Load html into an HtmlDocument object we can maniupulate
+            var doc = new HtmlDocument() {
+                OptionWriteEmptyNodes = true,
+                OptionFixNestedTags = true,
+                OptionAutoCloseOnEnd = true,
+            };
+            doc.LoadHtml(html);
+
+            // Find all the image nodes in the document
+            var nodes = doc.DocumentNode.SelectNodes("//img");
+
+            // If we have nodes, then we add them up and return them
+            if (nodes != null) {
+                foreach (var node in nodes) {
+                    ret.Add(node.Attributes["src"]?.Value ?? "");
+                }
+            }
+
+            return ret;
+        }
     }
 }
