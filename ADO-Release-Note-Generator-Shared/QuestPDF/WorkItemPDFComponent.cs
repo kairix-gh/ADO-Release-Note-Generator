@@ -65,9 +65,7 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
                         row.RelativeItem().Column(col => {
                             col.Item().Text(itemTitle).FontSize(12);
                             col.Item().Text("Dev Ops: " + item.Id.ToString()).FontSize(12);
-                            col.Item().Text(itemDesc).FontSize(12).FontColor(Colors.Grey.Darken3);
-
-                            col.Spacing(10);
+                            col.Item().PaddingBottom(10).Text(itemDesc).FontSize(12).FontColor(Colors.Grey.Darken3);
 
                             // Create an inline container for images, this will always be a little wonky because
                             // of scaling.
@@ -86,12 +84,13 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
                                                 // If our image exceeds maximum width/height we have QuestPDF resize the image
                                                 // for us.
                                                 if (useResizeWidth) {
-                                                    inline.Item().Image(imageData.Bytes, ImageScaling.FitWidth);
+                                                    inline.Item().Padding(5).Image(imageData.Bytes, ImageScaling.FitWidth);
                                                 } else {
                                                     // Otherwise we use the width/height of the image
                                                     inline.Item()
                                                         .Width(imageData.Width)
                                                         .Height(imageData.Height)
+                                                        .Padding(5)
                                                     .Image(imageData.Bytes, ImageScaling.Resize);
                                                 }
                                             } catch (DocumentComposeException) {
