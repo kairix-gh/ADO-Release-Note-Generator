@@ -40,7 +40,10 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
 #if DEBUG
                         itemTitle = $"{itemGroup.Name} Item";
 #else
-                        continue;
+                        if (!item.Fields.TryGetValue("System.Title", out itemTitle) || string.IsNullOrWhiteSpace(itemTitle)) {
+                            // All items should have a title, if this doesn't we want to skip
+                            continue;
+                        }
 #endif
                     }
 
