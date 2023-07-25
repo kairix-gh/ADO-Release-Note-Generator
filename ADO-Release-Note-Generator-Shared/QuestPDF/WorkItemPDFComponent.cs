@@ -36,11 +36,12 @@ namespace ADO_Release_Note_Generator_Shared.QuestPDF {
                 col.Item().Text(title).FontSize(16);
                 foreach (WorkItem item in items) {
                     // Ensure we have title and description
+                    itemTitle = "";
                     if (!item.Fields.TryGetValue(itemGroup.TitleField, out itemTitle) || string.IsNullOrWhiteSpace(itemTitle)) {
 #if DEBUG
                         itemTitle = $"{itemGroup.Name} Item";
 #else
-                        if (!item.Fields.TryGetValue("System.Title", out itemTitle) || string.IsNullOrWhiteSpace(itemTitle)) {
+                        if (string.IsNullOrWhiteSpace(itemTitle) && !item.Fields.TryGetValue("System.Title", out itemTitle)) {
                             // All items should have a title, if this doesn't we want to skip
                             continue;
                         }
